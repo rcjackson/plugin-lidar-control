@@ -76,8 +76,8 @@ def make_scan_file(repeat, rays_per_point,
 
 out_file_name = 'user.txt'
 lidar_ip_addr = '192.168.1.90'
-lidar_uname = 'waggle'
-lidar_pwd = 'w8ggl3'
+lidar_uname = 'jenny'
+lidar_pwd = '8675309'
 
 rays_per_point = 1.
 azimuths = 60.
