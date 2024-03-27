@@ -62,9 +62,9 @@ def make_scan_file(repeat, rays_per_point,
             no_points = int((max_el - min_el)/beam_width)
         
         with open(out_file_name, 'w') as fi:
-            fi.write('%d\r\n' % repeat)
-            fi.write('%d\r\n' % no_points)
-            fi.write('%d\r\n' % rays_per_point)
+    #        fi.write('%d\r\n' % repeat)
+    #        fi.write('%d\r\n' % no_points)
+    #        fi.write('%d\r\n' % rays_per_point)
             
             cur_el = min_el
             while(not np.abs(cur_el - max_el) < beam_width):
@@ -74,21 +74,30 @@ def make_scan_file(repeat, rays_per_point,
                 string = "%07.3f%07.3f\r\n" % (azimuths, cur_el)
                 fi.write(string) 
 
-out_file_name = 'user.txt'
-lidar_ip_addr = '192.168.1.90'
-lidar_uname = 'jenny'
-lidar_pwd = '8675309'
-
-rays_per_point = 1.
-azimuths = 60.
-elevations = (0., 90.)
-make_scan_file(7., rays_per_point, elevations, azimuths, out_file_name)
-
-with paramiko.SSHClient() as ssh:
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(lidar_ip_addr, username=lidar_uname, password=lidar_pwd)
-    print("Connected to the Lidar!")
-    with ssh.open_sftp() as sftp:
+def send_scan(file, lidar_ip_addr, lidar_uname, lidar_pwd, out_file_name='user1.txt'):
+    with paramiko.SSHClient() as ssh:
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(lidar_ip_addr, username=lidar_uname, password=lidar_pwd)
+        print("Connected to the Lidar!")
+        with ssh.open_sftp() as sftp:
         sftp.put(out_file_name, "/C:/Lidar/System/Scan parameters/%s" % out_file_name)
         print("New scan strategy available as %s on Lidar" % out_file_name)
+
+#out_file_name = 'cal.txt'
+#lidar_ip_addr = '192.168.1.90'
+#lidar_uname = 'jenny'
+#lidar_pwd = '8675309'
+
+#rays_per_point = 1.
+#azimuths = (195, 200.)
+#elevations = [0.1, 0.2, 0.3] 
+#make_scan_file(7., rays_per_point, elevations, azimuths, out_file_name, beam_width=1)
+
+#with paramiko.SSHClient() as ssh:
+#    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+#    ssh.connect(lidar_ip_addr, username=lidar_uname, password=lidar_pwd)
+#    print("Connected to the Lidar!")
+#    with ssh.open_sftp() as sftp:
+#        sftp.put(out_file_name, "/C:/Lidar/System/Scan parameters/%s" % out_file_name)
+#        print("New scan strategy available as %s on Lidar" % out_file_name)
 
