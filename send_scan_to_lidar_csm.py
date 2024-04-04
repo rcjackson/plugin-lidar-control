@@ -62,8 +62,8 @@ def send_scan(file_name, lidar_ip_addr, lidar_uname, lidar_pwd, out_file_name='u
 
 out_file_name = 'ppi0.5.txt'
 lidar_ip_addr = '10.31.81.87'
-lidar_uname = 'end user'
-lidar_pwd = 'mju7^TFC'
+lidar_uname = ''
+lidar_pwd = ''
 
 rays_per_point = 1.
 azimuths = np.arange(0., 360., 1)
