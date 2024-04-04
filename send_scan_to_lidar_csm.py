@@ -1,4 +1,5 @@
 import numpy as np
+import paramiko
 
 AZ_COUNTS_PER_ROT = 500000
 EL_COUNTS_PER_ROT = 250000
@@ -6,7 +7,8 @@ EL_COUNTS_PER_ROT = 250000
 def make_scan_file(elevations, azimuths,
                    out_file_name, azi_speed=1.,
                    el_speed=0.1,
-                   wait=0, acceleration=30):
+                   wait=0, acceleration=30, repeat=7,
+                   rays_per_point=2):
     """
     Makes a scanning strategy file for a Halo Photonics Doppler Lidar.
     
@@ -28,8 +30,12 @@ def make_scan_file(elevations, azimuths,
     speed_azi_encoded = int(azi_speed * (AZ_COUNTS_PER_ROT / 360.))
     speed_el_encoded = int(el_speed * (EL_COUNTS_PER_ROT / 360.))
     clockwise = True
-    
+    no_points = len(azimuths) * len(elevations)
     with open(out_file_name, 'w') as output:
+        output.write('%d\r\n' % repeat)
+        output.write('%d\r\n' % no_points)
+        output.write('%d\r\n' % rays_per_point)
+  
         for el in elevations:
             if clockwise:
                 az_array = azimuths
@@ -45,14 +51,23 @@ def make_scan_file(elevations, azimuths,
             clockwise = ~clockwise
     return
 
-out_file_name = 'cal-csm.txt'
-lidar_ip_addr = '192.168.1.90'
-lidar_uname = 'jenny'
-lidar_pwd = '8675309'
+def send_scan(file_name, lidar_ip_addr, lidar_uname, lidar_pwd, out_file_name='user.txt'):
+    with paramiko.SSHClient() as ssh:
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(lidar_ip_addr, username=lidar_uname, password=lidar_pwd)
+        print("Connected to the Lidar!")
+        with ssh.open_sftp() as sftp:
+            sftp.put(file_name, "/C:/Lidar/System/Scan parameters/%s" % out_file_name)
+            print("New scan strategy available as %s on Lidar" % out_file_name)
+
+out_file_name = 'ppi0.5.txt'
+lidar_ip_addr = '10.31.81.87'
+lidar_uname = 'end user'
+lidar_pwd = 'mju7^TFC'
 
 rays_per_point = 1.
-azimuths = [195, 200.]
-elevations = np.arange(0, 0.3, 0.05)
+azimuths = np.arange(0., 360., 1)
+elevations = [0.1]
 
-make_scan_file(elevations, azimuths, out_file_name, azi_speed=0.05, el_speed=0.005)
-    
+make_scan_file(elevations, azimuths, out_file_name, azi_speed=1, el_speed=0.005)
+send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd)    

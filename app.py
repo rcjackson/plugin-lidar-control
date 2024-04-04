@@ -103,14 +103,14 @@ else:
 
 height_of_interest = 150.
 threshold = 15.
-lidar_ip = '10.crap'
+lidar_ip = '10.31.81.87'
 lidar_user = os.environ['LIDAR_USER_NAME']
 lidar_password = os.environ['LIDAR_PASSWORD']
 
-dataset = read_as_netcdf(file, 41.98053299237866, -87.71662374616044, 0.)
-dataset["signal_to_noise_ratio"] = dataset["intensity"] - 1
-dataset = act.retrievals.compute_winds_from_ppi(dataset)
-wind_at_height = ds["wind_speed"].sel(height=height_of_interest, method='nearest')
-if wind_at_height >= threshold:
-   send_scan(file, lidar_ip_addr, lidar_uname, lidar_pwd) 
+#dataset = read_as_netcdf(file, 41.98053299237866, -87.71662374616044, 0.)
+#dataset["signal_to_noise_ratio"] = dataset["intensity"] - 1
+#dataset = act.retrievals.compute_winds_from_ppi(dataset)
+#wind_at_height = ds["wind_speed"].sel(height=height_of_interest, method='nearest')
+#if wind_at_height >= threshold:
+send_scan(file, lidar_ip_addr, lidar_uname, lidar_pwd) 
 
