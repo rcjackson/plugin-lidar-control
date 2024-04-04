@@ -2,6 +2,7 @@ import numpy as np
 import act
 import glob
 import utils
+import os
 from send_scan_to_lidar import *
 
 def convert_to_hours_minutes_seconds(decimal_hour, initial_time):
@@ -103,8 +104,8 @@ else:
 height_of_interest = 150.
 threshold = 15.
 lidar_ip = '10.crap'
-lidar_user = 'superman'
-lidar_password = '$ecuritron'
+lidar_user = os.environ['LIDAR_USER_NAME']
+lidar_password = os.environ['LIDAR_PASSWORD']
 
 dataset = read_as_netcdf(file, 41.98053299237866, -87.71662374616044, 0.)
 dataset["signal_to_noise_ratio"] = dataset["intensity"] - 1
