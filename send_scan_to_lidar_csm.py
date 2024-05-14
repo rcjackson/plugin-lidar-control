@@ -123,7 +123,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--smag', type=float, default=2, 
             help='Vertical wind shear magnitude threshold for triggering')
-    parser.add_argument('--sdir', type=float, default=2, 
+    parser.add_argument('--sdir', type=float, default=90, 
             help='Vertical wind shear direction threshold for triggering')
     parser.add_argument('--shear_top', type=float, default=1000, 
             help='Top vertical level for shear calculation [m]')
