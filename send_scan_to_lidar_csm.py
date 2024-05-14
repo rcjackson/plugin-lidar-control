@@ -156,7 +156,7 @@ if __name__ == "__main__":
     dataset = None
     file_list = sorted(file_list)[-1:0:-1]
     for f in file_list:
-        if 'Wind_Profile' in f:
+        if 'Wind_Profile' in f and not 'Processed' in f:
             dataset = read_as_netcdf(f, nant_lat_lon[0], nant_lat_lon[1], 0)
             continue
     print("Loaded dataset")
