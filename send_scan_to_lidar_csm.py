@@ -196,11 +196,11 @@ if __name__ == "__main__":
                                 timestamp=time.time_ns())
 
     
-    make_scan_file(elevations, azimuths, out_file_name, azi_speed=2, el_speed=1, repeat=repeat)
-    send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd)    
+        make_scan_file(elevations, azimuths, out_file_name, azi_speed=2, el_speed=1, repeat=repeat)
+        send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd)    
 
-    print("Uploading User1 files...")
-    for f in file_list:
-        if 'Wind_Profile' in f or 'User1' in f:
-            print(f)
-            plugin.upload_file(f)          
+        print("Uploading User1 files...")
+        for f in file_list:
+            if 'Wind_Profile' in f or 'User1' in f:
+                print(f)
+                plugin.upload_file(f)          
