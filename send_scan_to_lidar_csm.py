@@ -186,7 +186,7 @@ if __name__ == "__main__":
             plugin.publish("lidar.strategy",
                                 0,
                                 timestamp=time.time_ns())
-
+        plugin.publish("lidar.max_wind_speed", max_wind.values[0], timestamp=time.time_ns())
     
         make_scan_file(elevations, azimuths, out_file_name, azi_speed=2, el_speed=1, repeat=repeat)
         send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd)    
