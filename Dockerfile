@@ -11,5 +11,5 @@ RUN pip3 install paramiko
 RUN pip3 install --upgrade pywaggle
 
 COPY . .
-ENTRYPOINT ["python3", "send_scan_to_lidar_csm.py", "--smag=1"]
+ENTRYPOINT ["python3", "send_scan_to_lidar_csm.py"]
 

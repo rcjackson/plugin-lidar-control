@@ -121,14 +121,12 @@ if __name__ == "__main__":
     out_file_name = 'ppi0.5.txt'
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--smag', type=float, default=2, 
-            help='Vertical wind shear magnitude threshold for triggering')
-    parser.add_argument('--sdir', type=float, default=90, 
-            help='Vertical wind shear direction threshold for triggering')
+    parser.add_argument('--wmag', type=float, default=2, 
+            help='Max wind threshold for triggering [m/s]')
     parser.add_argument('--shear_top', type=float, default=1000, 
-            help='Top vertical level for shear calculation [m]')
+            help='Top vertical level for wind max calculation [m]')
     parser.add_argument('--shear_bottom', type=float, default=200,
-            help='Bottom vertical level for shear calculation [m]')
+            help='Bottom vertical level for wind max calculation [m]')
     parser.add_argument('--repeat', type=float, default=2, 
             help='Scan interval [min]')
     parser.add_argument('--lidar_ip_addr', type=str, default='10.31.81.87',
@@ -139,8 +137,7 @@ if __name__ == "__main__":
             help='Lidar password')
     rays_per_point = 1.
     args = parser.parse_args()
-    shear_threshold = args.smag
-    shear_dir_threshold = args.sdir
+    wind_threshold = args.wmag
     shear_top = args.shear_top
     shear_bottom = args.shear_bottom
     lidar_ip_addr = args.lidar_ip_addr
@@ -172,24 +169,19 @@ if __name__ == "__main__":
         dataset["signal_to_noise_ratio"] = dataset["intensity"] - 1
         print("Processing VAD")
         dataset = act.retrievals.compute_winds_from_ppi(dataset, intensity_name='intensity') 
-        dataset['wind_speed'] = dataset['wind_speed'].interpolate_na(dim='height', method='nearest')
-        dataset['wind_direction'] = dataset['wind_direction'].interpolate_na(dim='height', method='nearest')
-        print(dataset['wind_speed'].sel(height=shear_top, method='nearest').mean())
-        print(dataset['wind_speed'].sel(height=shear_bottom, method='nearest').mean())
-        shear = dataset['wind_speed'].sel(height=shear_top, method='nearest').mean() - dataset['wind_speed'].sel(height=shear_bottom, method='nearest').mean()
-        shear_dir = dataset['wind_direction'].sel(height=shear_bottom, method='nearest').mean() - dataset['wind_direction'].sel(height=shear_bottom, method='nearest').mean()
-        if np.abs(shear) > shear_threshold or np.abs(shear_dir) > shear_dir_threshold:
+        max_wind = dataset['wind_speed'].sel(height=slice(shear_bottom, shear_top)).max(dim='height')
+        if np.abs(max_wind) > wind_threshold:
             azimuths = np.arange(180, 270, 2)
             elevations = [0.5]
             print("Triggering PPI")
-            print("Wind shear = %f, %f" % (shear, shear_dir))
+            print("Max wind = %f" % (max_wind))
             plugin.publish("lidar.strategy",
                                     1,
                                     timestamp=time.time_ns())
         else:
             azimuths = np.arange(0, 1, 0.5)
             elevations = [60]
-            print("Wind shear = %f, %f" % (shear, shear_dir))
+            print("Max wind = %f" % (max_wind))
             print("Not triggering PPI")
             plugin.publish("lidar.strategy",
                                 0,

@@ -6,10 +6,9 @@ This plugin, given arrays of azimuths describing a PPI scan, or elevations for R
 
 ## Arguments
     
-    --smag: Vertical wind shear magnitude threshold for triggering [2 m s between heights default]
-    --sdir: Vertical wind shear direction threshold for triggering [90 degrees default]
-    --shear_top: Top hegith for calculating vertical wind shear (default = 1000 m)
-    --shear_bottom: Bottom height for calculating vertical wind shear (default = 200 m)
+    --wmag: Vertical wind shear magnitude threshold for triggering [15 m/s default]
+    --shear_top: Top height for calculating max wind (default = 1000 m)
+    --shear_bottom: Bottom height for calculating max wind (default = 0 m)
     --repeat: Repeat scan every x minutes
     --lidar_ip_addr: Lidar's IP address
     --lidar_uname: Lidar's username
