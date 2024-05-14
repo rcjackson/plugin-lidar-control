@@ -1,43 +1,27 @@
-# Science
+## Halo Photonics Doppler lidar triggering
 
-Doppler lidars collect profiles of radial wind velocities in the atmospheric boundary layer. In order to inform the Doppler lidar where to scan in order to detect regions of interest, such as the wake of wind farms during high widn events, an adaptive sensing capability is needed. This plugin contains the code needed to create a custom scan for the Halo Photonics Doppler lidar and send it to the lidar when a certain condition is satisfied. The default configuration will use the VAD scan's radial velocities from the Doppler lidar to determine the wind velocity at 100 m via the Atmospheric Radiation Measurement facility's VAP code (Newsom et al. 2017) in the Atmospheric Community Toolkit. It is then configured to perform a sector scan that targets the wind farm south of Nantucket.
+This plugin will trigger a given scan strategy when a connected Halo Photonics Doppler lidar is properly configured. SFTP must be enabled on the connected lidar for this to work. In addition, the scan strategy must be set to collect VADs every fixed time interval to calculate the wind shear for the triggering. Finally, the User1 scan must be enabled in the Scan Scheduler.
 
-# Using the code
+This plugin, given arrays of azimuths describing a PPI scan, or elevations for RHIs, will send a CSM-format scan strategy to user.txt in the destination Doppler lidar. It will choose to send your scan if the wind shear retrieved from the VAD scan is above specified wind magnitude and direction thresholds. 
 
-The input data are autocorrelation function files from the ARM dlacf.a1 dataset. While the algorithm will work on input
-SNR data, the design from raw data is there in order to support deciding how to process and store the data from the raw
-observations before they are stored on the ARM archive.
-The path to these files must be specified in the app.py file.
+## Arguments
+    
+    --smag: Vertical wind shear magnitude threshold for triggering [2 m s between heights default]
+    --sdir: Vertical wind shear direction threshold for triggering [90 degrees default]
+    --shear_top: Top hegith for calculating vertical wind shear (default = 1000 m)
+    --shear_bottom: Bottom height for calculating vertical wind shear (default = 200 m)
+    --repeat: Repeat scan every x minutes
+    --lidar_ip_addr: Lidar's IP address
+    --lidar_uname: Lidar's username
+    --lidar_pwd: Lidar's password
 
-# Arguments
---verbose: Display more information
 
---input [ARM datastream]: The ARM datastream to use as input
-
---model [json file]: The model file to use.
-
---interval [time interval]: The time interval to classify over
-
---date: The date to pull data from. Set to None to use latest date/time.
-
---time: The time to pull data from.
-
-# Ontology
-
-The algorithm will then output scene classifications (weather.classifier.class) 
-over five minute time periods. 
-
-weather.classifier.class: The three classifications supported are
-currently 'clear', 'cloudy', and 'rainy'.
-
-# Inferences from Sage Codes
-
-To query the output classification from the plugin, simply do:
-
-    import sage_data_client
-
-    df = sage_data_client.query(start="-120m",
-        filter={"name": "weather.classifier.class"}
-    )
-    print(df)
-
+# Data Query
+To query the last hour of data, do:
+```
+df = sage_data_client.query(
+            start="-1h",
+            filter={"name": "upload", "vsn": "W08D",
+                   "plugin": "10.31.81.1:5000/local/plugin-lidarcontrol"},).set_index("timestamp")
+```                   
+The names of the available files are in the *value* key of the dataframe.
