@@ -8,7 +8,8 @@ RUN apt-get install -y python3-h5netcdf
 RUN pip3 install act-atmos
 RUN pip3 install xarray
 RUN pip3 install paramiko
+RUN pip3 install --upgrade pywaggle
 
 COPY . .
-ENTRYPOINT ["python3", "send_scan_to_lidar_csm.py"]
+ENTRYPOINT ["python3", "send_scan_to_lidar_csm.py", "--smag=1"]
 

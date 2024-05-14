@@ -1,6 +1,16 @@
 import numpy as np
 import paramiko
+import act
+import argparse
+import glob
+import sys
+import datetime
+import time
+import os
+import xarray as xr
 
+from utils import read_as_netcdf
+from waggle.plugin import Plugin
 AZ_COUNTS_PER_ROT = 500000
 EL_COUNTS_PER_ROT = 250000
 
@@ -52,6 +62,24 @@ def make_scan_file(elevations, azimuths,
     return
 
 def send_scan(file_name, lidar_ip_addr, lidar_uname, lidar_pwd, out_file_name='user.txt'):
+    """
+
+    Sends a scan to the lidar
+
+    Parameters
+    ---------
+    file_name: str
+        Path to the CSM-format scan strategy
+    lidar_ip_addr:
+        IP address of the lidar
+    lidar_uname:
+        The username of the lidar
+    lidar_password:
+        The lidar's password
+    out_file_name:
+        The output file name on the lidar
+    """
+
     with paramiko.SSHClient() as ssh:
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(lidar_ip_addr, username=lidar_uname, password=lidar_pwd)
@@ -60,14 +88,107 @@ def send_scan(file_name, lidar_ip_addr, lidar_uname, lidar_pwd, out_file_name='u
             sftp.put(file_name, "/C:/Lidar/System/Scan parameters/%s" % out_file_name)
             print("New scan strategy available as %s on Lidar" % out_file_name)
 
-out_file_name = 'ppi0.5.txt'
-lidar_ip_addr = '10.31.81.87'
-lidar_uname = ''
-lidar_pwd = ''
+def get_file(time, lidar_ip_addr, lidar_uname, lidar_pwd):
+    with paramiko.SSHClient() as ssh:
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        print("Connecting to %s" % lidar_ip_addr)
+        ssh.connect(lidar_ip_addr, username=lidar_uname, password=lidar_pwd)
+        print("Connected to the Lidar!")
+        year = time.year
+        day = time.day
+        month = time.month
+        hour = time.hour
 
-rays_per_point = 1.
-azimuths = np.arange(0., 360., 1)
-elevations = [0.1]
+        file_path = "/C:/Lidar/Data/Proc/%d/%d%02d/%d%02d%02d/" % (year, year, month, year, month, day)
+        print(file_path)
+        with ssh.open_sftp() as sftp:
+            file_list = sftp.listdir(file_path)
+            time_string = '%d%02d%02d_%02d' % (year, month, day, hour)
+            file_name = None
+           
+            for f in file_list:
+                print(f)
+                if'Wind_Profile' in f and time_string in f: 
+                    file_name = f
+            if file_name is None:
+                print("%s not found!" % str(time))
+                return
+            base, name = os.path.split(file_name)
+            print(print(file_name))
+            sftp.get(os.path.join(file_path, file_name), name)
 
-make_scan_file(elevations, azimuths, out_file_name, azi_speed=1, el_speed=0.005)
-send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd)    
+
+if __name__ == "__main__":
+    out_file_name = 'ppi0.5.txt'
+    lidar_ip_addr = '10.31.81.87'
+    lidar_uname = 'end user'
+    lidar_pwd = 'mju7^TFC'
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--smag', type=float, default=2, 
+            help='Vertical wind shear magnitude threshold for triggering')
+    parser.add_argument('--sdir', type=float, default=2, 
+            help='Vertical wind shear direction threshold for triggering')
+    parser.add_argument('--shear_top', type=float, default=1000, 
+            help='Top vertical level for shear calculation [m]')
+    parser.add_argument('--shear_bottom', type=float, default=200,
+            help='Bottom vertical level for shear calculation [m]')
+    parser.add_argument('--repeat', type=float, default=2, 
+            help='Scan interval [min]')
+    rays_per_point = 1.
+    args = parser.parse_args()
+    shear_threshold = args.smag
+    shear_dir_threshold = args.sdir
+    shear_top = args.shear_top
+    shear_bottom = args.shear_bottom
+    repeat = args.repeat
+    # Get the latest VAD
+    nant_lat_lon = (41.28079475342454, -70.16484695039435)
+    cur_time = datetime.datetime.now()
+    get_file(cur_time, lidar_ip_addr, lidar_uname, lidar_pwd)
+    file_list = glob.glob('*.hpl')
+    
+    dataset = None
+    for f in file_list:
+        if 'Wind_Profile' in f:
+            dataset = read_as_netcdf(f, nant_lat_lon[0], nant_lat_lon[1], 0)
+            continue
+    print("Loaded dataset")
+    if dataset is not None:
+        dataset.to_netcdf('test.nc')
+        dataset = xr.open_dataset('test.nc')
+    with Plugin() as plugin:    
+        if dataset is None:
+            print("Not triggering PPI")
+            plugin.publish("lidar.strategy", 1,
+                             timestamp=time.time_ns())
+            sys.exit(0)
+        dataset["signal_to_noise_ratio"] = dataset["intensity"] - 1
+        print("Processing VAD")
+        dataset = act.retrievals.compute_winds_from_ppi(dataset, intensity_name='intensity') 
+        dataset['wind_speed'] = dataset['wind_speed'].interpolate_na(dim='height', method='nearest')
+        dataset['wind_direction'] = dataset['wind_direction'].interpolate_na(dim='height', method='nearest')
+        print(dataset['wind_speed'].sel(height=shear_top, method='nearest').mean())
+        print(dataset['wind_speed'].sel(height=shear_bottom, method='nearest').mean())
+        shear = dataset['wind_speed'].sel(height=shear_top, method='nearest').mean() - dataset['wind_speed'].sel(height=shear_bottom, method='nearest').mean()
+        shear_dir = dataset['wind_direction'].sel(height=shear_bottom, method='nearest').mean() - dataset['wind_direction'].sel(height=shear_bottom, method='nearest').mean()
+        if np.abs(shear) > shear_threshold or np.abs(shear_dir) > shear_dir_threshold:
+            azimuths = np.arange(180, 270, 2)
+            elevations = [0.5]
+            print("Triggering PPI")
+            print("Wind shear = %f, %f" % (shear, shear_dir))
+            plugin.publish("lidar.strategy",
+                                    1,
+                                    timestamp=time.time_ns())
+        else:
+            azimuths = np.arange(0, 1, 0.5)
+            elevations = [60]
+            print("Wind shear = %f, %f" % (shear, shear_dir))
+            print("Not triggering PPI")
+            plugin.publish("lidar.strategy",
+                                0,
+                                timestamp=time.time_ns())
+
+    
+    make_scan_file(elevations, azimuths, out_file_name, azi_speed=2, el_speed=1, repeat=repeat)
+    send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd)    
