@@ -107,15 +107,14 @@ def get_file(time, lidar_ip_addr, lidar_uname, lidar_pwd):
             file_name = None
            
             for f in file_list:
-                print(f)
-                if'Wind_Profile' in f and time_string in f: 
+                if time_string in f: 
                     file_name = f
+                    base, name = os.path.split(file_name)
+                    print(print(file_name))
+                    sftp.get(os.path.join(file_path, file_name), name)
             if file_name is None:
                 print("%s not found!" % str(time))
                 return
-            base, name = os.path.split(file_name)
-            print(print(file_name))
-            sftp.get(os.path.join(file_path, file_name), name)
 
 
 if __name__ == "__main__":
@@ -149,6 +148,7 @@ if __name__ == "__main__":
     file_list = glob.glob('*.hpl')
     
     dataset = None
+    file_list = sorted(file_list)[-1:0:-1]
     for f in file_list:
         if 'Wind_Profile' in f:
             dataset = read_as_netcdf(f, nant_lat_lon[0], nant_lat_lon[1], 0)
@@ -192,3 +192,9 @@ if __name__ == "__main__":
     
     make_scan_file(elevations, azimuths, out_file_name, azi_speed=2, el_speed=1, repeat=repeat)
     send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd)    
+
+    print("Uploading User1 files...")
+    for f in file_list:
+        if 'Wind_Profile' in f or 'User1' in f:
+            print(f)
+            plugin.upload_file(f)          
