@@ -1,0 +1,13 @@
+name: "lidar-control"
+version: "0.1"
+description: "Plugin for remote control of Halo Photonics XR Doppler lidars"
+keywords: ""
+authors: "Bobby Jackson, Bhupendra Raut, Seongha Park, Paytsar Muradyan, Rob Newsum, Raghavendra Krishnamurthy"
+collaborators: ""
+funding: "U.S. Department of Energy"
+license: ""
+homepage: ""
+source:
+  architectures:
+    - "linux/amd64"
+    - "linux/arm64"
