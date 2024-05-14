@@ -119,9 +119,6 @@ def get_file(time, lidar_ip_addr, lidar_uname, lidar_pwd):
 
 if __name__ == "__main__":
     out_file_name = 'ppi0.5.txt'
-    lidar_ip_addr = '10.31.81.87'
-    lidar_uname = 'end user'
-    lidar_pwd = 'mju7^TFC'
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--smag', type=float, default=2, 
@@ -134,12 +131,21 @@ if __name__ == "__main__":
             help='Bottom vertical level for shear calculation [m]')
     parser.add_argument('--repeat', type=float, default=2, 
             help='Scan interval [min]')
+    parser.add_argument('--lidar_ip_addr', type=str, default='10.31.81.87',
+            help='Lidar IP address')
+    parser.add_argument('--lidar_uname', type=str, default='end user',
+            help='Lidar username')
+    parser.add_argument('--lidar_pwd', type=str, default='',
+            help='Lidar password')
     rays_per_point = 1.
     args = parser.parse_args()
     shear_threshold = args.smag
     shear_dir_threshold = args.sdir
     shear_top = args.shear_top
     shear_bottom = args.shear_bottom
+    lidar_ip_addr = args.lidar_ip_addr
+    lidar_uname = args.lidar_uname
+    lidar_pwd = args.lidar_pwd
     repeat = args.repeat
     # Get the latest VAD
     nant_lat_lon = (41.28079475342454, -70.16484695039435)
