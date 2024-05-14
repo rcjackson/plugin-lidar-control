@@ -155,7 +155,8 @@ if __name__ == "__main__":
     for f in file_list:
         if 'Wind_Profile' in f and not 'Processed' in f:
             dataset = read_as_netcdf(f, nant_lat_lon[0], nant_lat_lon[1], 0)
-            continue
+            print("Processing VAD from %s" % f)
+            break
     print("Loaded dataset")
     if dataset is not None:
         dataset.to_netcdf('test.nc')
