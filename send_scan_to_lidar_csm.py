@@ -129,6 +129,10 @@ if __name__ == "__main__":
             help='Bottom vertical level for wind max calculation [m]')
     parser.add_argument('--repeat', type=float, default=2, 
             help='Scan interval [min]')
+    parser.add_argument('--dir_max', type=float, default=215,
+            help='Upper limit of wind direction [degrees]')
+    parser.add_argument('--dir_min', type=float, default=135,
+            help='Lower limit of wind directionn [degrees]')
     parser.add_argument('--lidar_ip_addr', type=str, default='10.31.81.87',
             help='Lidar IP address')
     parser.add_argument('--lidar_uname', type=str, default='end user',
@@ -144,6 +148,8 @@ if __name__ == "__main__":
     lidar_uname = args.lidar_uname
     lidar_pwd = args.lidar_pwd
     repeat = args.repeat
+    dir_min = args.dir_min
+    dir_max = args.dir_max
     # Get the latest VAD
     nant_lat_lon = (41.28079475342454, -70.16484695039435)
     cur_time = datetime.datetime.now()
@@ -171,23 +177,30 @@ if __name__ == "__main__":
         print("Processing VAD")
         dataset = act.retrievals.compute_winds_from_ppi(dataset, intensity_name='intensity') 
         max_wind = dataset['wind_speed'].sel(height=slice(shear_bottom, shear_top)).max(dim='height')
-        if np.abs(max_wind) > wind_threshold:
+        max_wind_dir = dataset['wind_speed'].sel(height=slice(shear_bottom, shear_top)).argmax(dim='height').values
+        print(dataset['wind_speed'].sel(height=slice(shear_bottom, shear_top)))
+        print(max_wind_dir)
+        max_wind_dir = dataset['wind_direction'].sel(height=slice(shear_bottom, shear_top)).values[0, max_wind_dir]
+        print(max_wind_dir)
+        
+        if np.abs(max_wind) > wind_threshold and max_wind_dir > dir_min and max_wind_dir < dir_max:
             azimuths = np.arange(180, 270, 2)
             elevations = [0.5]
             print("Triggering PPI")
-            print("Max wind = %f" % (max_wind))
+            print("Max wind = %f, %f" % (max_wind, max_wind_dir))
             plugin.publish("lidar.strategy",
                                     1,
                                     timestamp=time.time_ns())
         else:
             azimuths = np.arange(0, 1, 0.5)
             elevations = [60]
-            print("Max wind = %f" % (max_wind))
+            print("Max wind = %f, %f" % (max_wind, max_wind_dir))
             print("Not triggering PPI")
             plugin.publish("lidar.strategy",
                                 0,
                                 timestamp=time.time_ns())
         plugin.publish("lidar.max_wind_speed", max_wind.values[0], timestamp=time.time_ns())
+        plugin.publish("lidar.max_wind_dir", max_wind_dir[0], timestamp=time.time_ns())
     
         make_scan_file(elevations, azimuths, out_file_name, azi_speed=2, el_speed=1, repeat=repeat)
         send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd)    

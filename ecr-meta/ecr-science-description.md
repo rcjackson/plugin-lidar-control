@@ -9,6 +9,8 @@ This plugin, given arrays of azimuths describing a PPI scan, or elevations for R
     --wmag: Vertical wind shear magnitude threshold for triggering [15 m/s default]
     --shear_top: Top height for calculating max wind (default = 1000 m)
     --shear_bottom: Bottom height for calculating max wind (default = 0 m)
+    --dir_min: Lower bound of direction trigger 
+    --dir_max: Upper bound of wind direction for trigger
     --repeat: Repeat scan every x minutes
     --lidar_ip_addr: Lidar's IP address
     --lidar_uname: Lidar's username
