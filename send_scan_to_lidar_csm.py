@@ -181,9 +181,8 @@ if __name__ == "__main__":
         print(dataset['wind_speed'].sel(height=slice(shear_bottom, shear_top)))
         print(max_wind_dir)
         max_wind_dir = dataset['wind_direction'].sel(height=slice(shear_bottom, shear_top)).values[0, max_wind_dir]
-        print(max_wind_dir)
-        
-        if np.abs(max_wind) > wind_threshold and max_wind_dir > dir_min and max_wind_dir < dir_max:
+         
+        if np.abs(max_wind) > wind_threshold and max_wind_dir[0] > dir_min and max_wind_dir[0] < dir_max:
             azimuths = np.arange(180, 270, 2)
             elevations = [0.5]
             print("Triggering PPI")
