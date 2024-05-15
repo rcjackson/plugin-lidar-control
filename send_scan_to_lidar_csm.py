@@ -98,16 +98,17 @@ def get_file(time, lidar_ip_addr, lidar_uname, lidar_pwd):
         day = time.day
         month = time.month
         hour = time.hour
-
+        prev_hour = time - datetime.timedelta(hours=1)
         file_path = "/C:/Lidar/Data/Proc/%d/%d%02d/%d%02d%02d/" % (year, year, month, year, month, day)
         print(file_path)
         with ssh.open_sftp() as sftp:
             file_list = sftp.listdir(file_path)
             time_string = '%d%02d%02d_%02d' % (year, month, day, hour)
+            time_string_prev = '%d%02d%02d_%02d' % (prev_hour.year, prev_hour.month, prev_hour.day, prev_hour.hour)
             file_name = None
            
             for f in file_list:
-                if time_string in f: 
+                if time_string in f or time_string_prev in f: 
                     file_name = f
                     base, name = os.path.split(file_name)
                     print(print(file_name))
@@ -205,7 +206,12 @@ if __name__ == "__main__":
         send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd)    
 
         print("Uploading User1 files...")
-        for f in file_list:
-            if 'Wind_Profile' in f or 'User1' in f:
-                print(f)
-                plugin.upload_file(f)          
+        if cur_time.minute < 15:
+            cur_time = cur_time - datetime.timedelta(hours=1)
+            for f in file_list:
+                if 'Wind_Profile' in f or 'User1' in f:            
+                    time_string = '%d%02d%02d_%02d' % (cur_time.year, cur_time.month, cur_time.day, 
+                            cur_time.hour)
+                    if time_string in f:
+                        print(f)
+                        plugin.upload_file(f)          
