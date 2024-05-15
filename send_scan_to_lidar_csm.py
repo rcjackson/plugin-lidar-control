@@ -129,9 +129,9 @@ if __name__ == "__main__":
             help='Bottom vertical level for wind max calculation [m]')
     parser.add_argument('--repeat', type=float, default=2, 
             help='Scan interval [min]')
-    parser.add_argument('--dir_max', type=float, default=215,
+    parser.add_argument('--dir_max', type=float, default=145,
             help='Upper limit of wind direction [degrees]')
-    parser.add_argument('--dir_min', type=float, default=135,
+    parser.add_argument('--dir_min', type=float, default=115,
             help='Lower limit of wind directionn [degrees]')
     parser.add_argument('--lidar_ip_addr', type=str, default='10.31.81.87',
             help='Lidar IP address')
@@ -183,7 +183,7 @@ if __name__ == "__main__":
         max_wind_dir = dataset['wind_direction'].sel(height=slice(shear_bottom, shear_top)).values[0, max_wind_dir]
          
         if np.abs(max_wind) > wind_threshold and max_wind_dir[0] > dir_min and max_wind_dir[0] < dir_max:
-            azimuths = np.arange(180, 270, 2)
+            azimuths = np.arange(115, 145, 2)
             elevations = [0.5]
             print("Triggering PPI")
             print("Max wind = %f, %f" % (max_wind, max_wind_dir))
