@@ -160,7 +160,7 @@ if __name__ == "__main__":
     dataset = None
     file_list = sorted(file_list)[-1:0:-1]
     for f in file_list:
-        if 'Wind_Profile' in f and not 'Processed' in f:
+        if 'VAD' in f:
             dataset = read_as_netcdf(f, nant_lat_lon[0], nant_lat_lon[1], 0)
             print("Processing VAD from %s" % f)
             break
@@ -171,8 +171,9 @@ if __name__ == "__main__":
     with Plugin() as plugin:    
         if dataset is None:
             print("Not triggering PPI")
-            plugin.publish("lidar.strategy", 1,
+            plugin.publish("lidar.strategy", 0,
                              timestamp=time.time_ns())
+            azimuths = [max_wind_dir-25, max_wind_dir+25]
             sys.exit(0)
         dataset["signal_to_noise_ratio"] = dataset["intensity"] - 1
         print("Processing VAD")
@@ -183,9 +184,9 @@ if __name__ == "__main__":
         print(max_wind_dir)
         max_wind_dir = dataset['wind_direction'].sel(height=slice(shear_bottom, shear_top)).values[0, max_wind_dir]
          
-        if np.abs(max_wind) > wind_threshold and max_wind_dir[0] > dir_min and max_wind_dir[0] < dir_max:
-            azimuths = np.arange(max_wind_dir-25, max_wind_dir+25, 2)
-            elevations = [0.5]
+        if np.abs(max_wind) > wind_threshold and max_wind_dir[0] > dir_min and max_wind_dir[0] < dir_max and cur_time.minute < 30:
+            azimuths = [max_wind_dir-25, max_wind_dir+25]
+            elevations = [2, 3, 4, 5, 7, 9, 11, 13, 15, 17]
             print("Triggering PPI")
             print("Max wind = %f, %f" % (max_wind, max_wind_dir))
             plugin.publish("lidar.strategy",
@@ -193,7 +194,7 @@ if __name__ == "__main__":
                                     timestamp=time.time_ns())
         else:
             azimuths = np.arange(0, 1, 0.5)
-            elevations = [60]
+            elevations = [85]
             print("Max wind = %f, %f" % (max_wind, max_wind_dir))
             print("Not triggering PPI")
             plugin.publish("lidar.strategy",
@@ -201,7 +202,8 @@ if __name__ == "__main__":
                                 timestamp=time.time_ns())
         plugin.publish("lidar.max_wind_speed", max_wind.values[0], timestamp=time.time_ns())
         plugin.publish("lidar.max_wind_dir", max_wind_dir[0], timestamp=time.time_ns())
-    
+        azimuths = np.arange(max_wind_dir-25, max_wind_dir+25, 2)
+        elevations = [2, 3, 4, 5, 7, 9, 11, 13, 15, 17]
         make_scan_file(elevations, azimuths, out_file_name, azi_speed=2, el_speed=1, repeat=repeat)
         send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd)    
 
@@ -209,7 +211,7 @@ if __name__ == "__main__":
         if cur_time.minute < 15:
             cur_time = cur_time - datetime.timedelta(hours=1)
             for f in file_list:
-                if 'Wind_Profile' in f or 'User1' in f:            
+                if 'Wind_Profile' in f or 'User1' in f or 'VAD' in f:            
                     time_string = '%d%02d%02d_%02d' % (cur_time.year, cur_time.month, cur_time.day, 
                             cur_time.hour)
                     if time_string in f:
