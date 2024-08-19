@@ -8,6 +8,7 @@ import pandas as pd
 import xarray as xr
 
 from datetime import datetime, timedelta
+from scipy.stats import mode
 
 def convert_to_hours_minutes_seconds(decimal_hour, initial_time):
     delta = timedelta(hours=decimal_hour)
@@ -107,17 +108,17 @@ def read_as_netcdf(file, lat, lon, alt):
     diff_azimuth = ds['azimuth'].diff(dim='time').values
     diff_elevation = ds['elevation'].diff(dim='time').values
     unique_elevations = np.unique(ds["elevation"].values)
-    if len(ds['time'].values) == 6:
+    if len(ds['time'].values) == 6 or mode(ds["elevation"].values) == 60.0:
         unique_elevations = np.array([60])
     counts = np.zeros_like(unique_elevations)
-    
+    print(ds['elevation'])
     for i in range(len(unique_elevations)):
         counts[i] = np.sum(ds["elevation"].values == unique_elevations[i])
     
     if np.sum(np.abs(diff_azimuth) > 0.02) <= 2  and not np.all(ds['elevation'] == 90.0):
         sweep_mode = 'rhi'
         n_sweeps = 1
-    elif np.all(ds['elevation'] == 90.0):
+    elif np.all(ds['elevation'] == 90.0) or np.all(np.isclose(ds['elevation'], 60.0)):
         sweep_mode = 'vertical_pointing'
         n_sweeps = 1
     else:

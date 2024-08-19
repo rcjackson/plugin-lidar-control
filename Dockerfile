@@ -7,6 +7,7 @@ RUN apt-get install -y python3-netcdf4
 RUN apt-get install -y python3-h5netcdf
 RUN pip3 install act-atmos
 RUN pip3 install xarray
+RUN pip3 install --upgrade pandas
 RUN pip3 install paramiko
 RUN pip3 install --upgrade pywaggle
 

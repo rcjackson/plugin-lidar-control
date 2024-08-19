@@ -123,7 +123,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--wmag', type=float, default=2, 
-            help='Max wind threshold for triggering [m/s]')
+            help='Max wind [TKE] threshold for triggering [m/s]')
+    parser.add_argument('--trigger_tke',action="store_true",
+            help="Trigger based off of TKE instead of winds")
     parser.add_argument('--shear_top', type=float, default=1000, 
             help='Top vertical level for wind max calculation [m]')
     parser.add_argument('--shear_bottom', type=float, default=200,
@@ -156,35 +158,53 @@ if __name__ == "__main__":
     cur_time = datetime.datetime.now()
     get_file(cur_time, lidar_ip_addr, lidar_uname, lidar_pwd)
     file_list = glob.glob('*.hpl')
-    
+    print(file_list) 
     dataset = None
+    ds_list = []
     file_list = sorted(file_list)[-1:0:-1]
     for f in file_list:
-        if 'VAD' in f:
+        if 'User5' in f or 'VAD' in f:
             dataset = read_as_netcdf(f, nant_lat_lon[0], nant_lat_lon[1], 0)
+            dataset = dataset.where(dataset.elevation < 89., drop=True)
+            dataset = dataset.drop_dims("sweep")
+            if np.all(dataset["elevation"] < 60.):
+                dataset = None
+                continue
             print("Processing VAD from %s" % f)
-            break
+            if args.trigger_tke is False:
+                ds_list = [dataset]
+                break
+            else:
+                ds_list.append(dataset)
+    ds = xr.concat(ds_list, dim='time')
     print("Loaded dataset")
-    if dataset is not None:
-        dataset.to_netcdf('test.nc')
+    if ds is not None:
+        ds.to_netcdf('test.nc')
         dataset = xr.open_dataset('test.nc')
     with Plugin() as plugin:    
-        if dataset is None:
+        if ds is None:
             print("Not triggering PPI")
             plugin.publish("lidar.strategy", 0,
                              timestamp=time.time_ns())
             azimuths = [max_wind_dir-25, max_wind_dir+25]
             sys.exit(0)
+        
         dataset["signal_to_noise_ratio"] = dataset["intensity"] - 1
         print("Processing VAD")
         dataset = act.retrievals.compute_winds_from_ppi(dataset, intensity_name='intensity') 
-        max_wind = dataset['wind_speed'].sel(height=slice(shear_bottom, shear_top)).max(dim='height')
-        max_wind_dir = dataset['wind_speed'].sel(height=slice(shear_bottom, shear_top)).argmax(dim='height').values
+        max_wind = dataset['wind_speed'][-1].sel(height=slice(shear_bottom, shear_top)).max(dim='height')
+        max_wind_dir = dataset['wind_speed'][-1].sel(height=slice(shear_bottom, shear_top)).argmax(dim='height').values
         print(dataset['wind_speed'].sel(height=slice(shear_bottom, shear_top)))
         print(max_wind_dir)
-        max_wind_dir = dataset['wind_direction'].sel(height=slice(shear_bottom, shear_top)).values[0, max_wind_dir]
-         
-        if np.abs(max_wind) > wind_threshold and max_wind_dir[0] > dir_min and max_wind_dir[0] < dir_max:
+        max_wind_dir = dataset['wind_direction'].sel(height=slice(shear_bottom, shear_top)).values[-1, max_wind_dir]
+        if args.trigger_tke is True:    
+            ds["radial_velocity"] = ds["radial_velocity"].where(ds["intensity"] > 1.008)
+            tke = 0.5*(ds["radial_velocity"].coarsen(time=6, boundary="trim").std()**2)[-360:].mean(dim='time')
+            sin60 = np.sqrt(3) / 2
+            max_wind = tke.sel(
+                range=slice(shear_bottom * sin60, shear_top * sin60)).max(dim='range') 
+            print(max_wind)
+        if np.abs(max_wind) > wind_threshold and max_wind_dir > dir_min and max_wind_dir < dir_max:
             azimuths = [max_wind_dir-30, max_wind_dir+30]
             elevations = [2, 3, 4, 5, 7, 9, 11, 13, 15, 17]
             print("Triggering PPI")
@@ -193,23 +213,27 @@ if __name__ == "__main__":
                                     1,
                                     timestamp=time.time_ns())
         else:
-            azimuths = np.arange(0, 1, 0.5)
-            elevations = [85]
+            azimuths = np.arange(0, 300, 60)
+            elevations = [60]
             print("Max wind = %f, %f" % (max_wind, max_wind_dir))
             print("Not triggering PPI")
             plugin.publish("lidar.strategy",
                                 0,
                                 timestamp=time.time_ns())
-        plugin.publish("lidar.max_wind_speed", max_wind.values[0], timestamp=time.time_ns())
-        plugin.publish("lidar.max_wind_dir", max_wind_dir[0], timestamp=time.time_ns())
-        make_scan_file(elevations, azimuths, out_file_name, azi_speed=2, el_speed=1, repeat=repeat)
+        if args.trigger_tke is False:
+            plugin.publish("lidar.max_wind_speed", float(max_wind.values), timestamp=time.time_ns())
+        else:
+            plugin.publish("lidar.max_tke", float(max_wind.values), timestamp=time.time_ns())
+        plugin.publish("lidar.max_wind_dir", max_wind_dir, timestamp=time.time_ns())
+        make_scan_file(elevations, azimuths, out_file_name,
+                azi_speed=2, el_speed=1, repeat=repeat)
         send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd)    
 
         print("Uploading User1 files...")
         if cur_time.minute < 15:
             cur_time = cur_time - datetime.timedelta(hours=1)
             for f in file_list:
-                if 'Wind_Profile' in f or 'User1' in f or 'VAD' in f:            
+                if 'Wind_Profile' in f or 'User1' in f or 'VAD' or 'User5' in f:            
                     time_string = '%d%02d%02d_%02d' % (cur_time.year, cur_time.month, cur_time.day, 
                             cur_time.hour)
                     if time_string in f:
