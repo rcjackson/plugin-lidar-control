@@ -161,14 +161,13 @@ if __name__ == "__main__":
     print(file_list) 
     dataset = None
     ds_list = []
-    file_list = sorted(file_list)[-1:0:-2]
+    file_list = sorted(file_list)[-1:0:-1]
     need_update = False
     for f in file_list:
         if 'User2' in f:
             dataset = read_as_netcdf(f, nant_lat_lon[0], nant_lat_lon[1], 0)
-            if np.all(dataset["elevation"] < 60):
+            if np.all(dataset["elevation"] < 60) or dataset.sizes["time"] < 20:
                 dataset = None
-                need_update = True
                 continue
             dataset = dataset.where(dataset.elevation < 89., drop=True)
             dataset = dataset.drop_dims("sweep")
