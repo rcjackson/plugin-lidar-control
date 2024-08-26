@@ -119,7 +119,7 @@ def get_file(time, lidar_ip_addr, lidar_uname, lidar_pwd):
 
 
 if __name__ == "__main__":
-    out_file_name = 'user.txt'
+    out_file_name = 'user1.txt'
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--wmag', type=float, default=2, 
@@ -161,10 +161,10 @@ if __name__ == "__main__":
     print(file_list) 
     dataset = None
     ds_list = []
-    file_list = sorted(file_list)[-1:0:-1]
+    file_list = sorted(file_list)[-1:0:-2]
     need_update = False
     for f in file_list:
-        if 'User5' in f or 'VAD' in f or 'User1' in f:
+        if 'User2' in f:
             dataset = read_as_netcdf(f, nant_lat_lon[0], nant_lat_lon[1], 0)
             if np.all(dataset["elevation"] < 60):
                 dataset = None
@@ -197,12 +197,12 @@ if __name__ == "__main__":
         print("Processing VAD")
         print(dataset)
         dataset = act.retrievals.compute_winds_from_ppi(dataset, intensity_name='intensity') 
-        
-        max_wind = dataset['wind_speed'][-1].sel(height=slice(shear_bottom, shear_top)).max(dim='height')
-        max_wind_dir = dataset['wind_speed'][-1].sel(height=slice(shear_bottom, shear_top)).argmax(dim='height').values
+        print(dataset['wind_speed']) 
+        max_wind = dataset['wind_speed'].mean(dim='time').sel(height=slice(shear_bottom, shear_top)).max(dim='height')
+        max_wind_dir = dataset['wind_speed'].mean(dim='time').sel(height=slice(shear_bottom, shear_top)).argmax(dim='height').values
         print(dataset['wind_speed'].sel(height=slice(shear_bottom, shear_top)))
         print(max_wind_dir)
-        max_wind_dir = dataset['wind_direction'].sel(height=slice(shear_bottom, shear_top)).values[-1, max_wind_dir]
+        max_wind_dir = dataset['wind_direction'].mean(dim='time').sel(height=slice(shear_bottom, shear_top)).values[max_wind_dir]
         if args.trigger_tke is True:    
             ds["radial_velocity"] = ds["radial_velocity"].where(ds["intensity"] > 1.008)
             tke = 0.5*(ds["radial_velocity"].std(dim='time')**2)
@@ -210,37 +210,19 @@ if __name__ == "__main__":
             max_wind = tke.sel(
                 range=slice(shear_bottom * sin60, shear_top * sin60)).max(dim='range') 
             print(max_wind)
-        if need_update == True and args.trigger_tke is True:
-            azimuths = [0, 300.]
-            elevations = [60.]
-            deg_per_sec = 60.
-            for i in range(5):
-                azimuth = azimuths + azimuths
-                elevations = elevations + elevations
-            print("Sending VAD to update turbulence statistics.")
-            print("Not triggering PPI")
-            plugin.publish("lidar.strategy",
-                                0,
-                                timestamp=time.time_ns())
-        elif np.abs(max_wind) > wind_threshold and max_wind_dir > dir_min and max_wind_dir < dir_max:
+        if np.abs(max_wind) > wind_threshold and max_wind_dir > dir_min and max_wind_dir < dir_max:
             azimuths = [max_wind_dir-30, max_wind_dir+30]
             elevations = [2, 3, 4, 5, 7, 9, 11, 13, 15, 17]
+            deg_per_sec = 2.
             print("Triggering PPI")
             print("Max wind = %f, %f" % (max_wind, max_wind_dir))
             plugin.publish("lidar.strategy",
                                     1,
                                     timestamp=time.time_ns())
         else:
-            if args.trigger_tke is False:
-                azimuths = np.arange(0, 300, 60)
-                elevations = [30]
-                deg_per_sec = 60
-            else:
-                azimuths = [0., 60., 120., 180., 240., 300.]
-                elevations = [60.]
-                deg_per_sec = 30.
-                for i in range(4):
-                    azimuths = azimuths + azimuths
+            azimuths = [0, 10]
+            elevations = [30]
+            deg_per_sec = 30
 
             print("Max wind = %f, %f" % (max_wind, max_wind_dir))
             print("Not triggering PPI")
@@ -260,7 +242,7 @@ if __name__ == "__main__":
         if cur_time.minute < 15:
             cur_time = cur_time - datetime.timedelta(hours=1)
             for f in file_list:
-                if 'Wind_Profile' in f or 'User1' in f or 'VAD' or 'User5' in f:            
+                if 'User' in f:            
                     time_string = '%d%02d%02d_%02d' % (cur_time.year, cur_time.month, cur_time.day, 
                             cur_time.hour)
                     if time_string in f:
