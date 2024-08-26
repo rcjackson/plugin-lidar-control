@@ -119,7 +119,7 @@ def get_file(time, lidar_ip_addr, lidar_uname, lidar_pwd):
 
 
 if __name__ == "__main__":
-    out_file_name = 'ppi0.5.txt'
+    out_file_name = 'user.txt'
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--wmag', type=float, default=2, 
@@ -162,20 +162,24 @@ if __name__ == "__main__":
     dataset = None
     ds_list = []
     file_list = sorted(file_list)[-1:0:-1]
+    need_update = False
     for f in file_list:
-        if 'User5' in f or 'VAD' in f:
+        if 'User5' in f or 'VAD' in f or 'User1' in f:
             dataset = read_as_netcdf(f, nant_lat_lon[0], nant_lat_lon[1], 0)
+            if np.all(dataset["elevation"] < 60):
+                dataset = None
+                need_update = True
+                continue
             dataset = dataset.where(dataset.elevation < 89., drop=True)
             dataset = dataset.drop_dims("sweep")
-            if np.all(dataset["elevation"] < 60.):
-                dataset = None
-                continue
+            # Last dataset is a stacked PPI, let's send a VAD
             print("Processing VAD from %s" % f)
             if args.trigger_tke is False:
                 ds_list = [dataset]
                 break
             else:
                 ds_list.append(dataset)
+                break
     ds = xr.concat(ds_list, dim='time')
     print("Loaded dataset")
     if ds is not None:
@@ -191,7 +195,9 @@ if __name__ == "__main__":
         
         dataset["signal_to_noise_ratio"] = dataset["intensity"] - 1
         print("Processing VAD")
+        print(dataset)
         dataset = act.retrievals.compute_winds_from_ppi(dataset, intensity_name='intensity') 
+        
         max_wind = dataset['wind_speed'][-1].sel(height=slice(shear_bottom, shear_top)).max(dim='height')
         max_wind_dir = dataset['wind_speed'][-1].sel(height=slice(shear_bottom, shear_top)).argmax(dim='height').values
         print(dataset['wind_speed'].sel(height=slice(shear_bottom, shear_top)))
@@ -199,12 +205,24 @@ if __name__ == "__main__":
         max_wind_dir = dataset['wind_direction'].sel(height=slice(shear_bottom, shear_top)).values[-1, max_wind_dir]
         if args.trigger_tke is True:    
             ds["radial_velocity"] = ds["radial_velocity"].where(ds["intensity"] > 1.008)
-            tke = 0.5*(ds["radial_velocity"].coarsen(time=6, boundary="trim").std()**2)[-360:].mean(dim='time')
+            tke = 0.5*(ds["radial_velocity"].std(dim='time')**2)
             sin60 = np.sqrt(3) / 2
             max_wind = tke.sel(
                 range=slice(shear_bottom * sin60, shear_top * sin60)).max(dim='range') 
             print(max_wind)
-        if np.abs(max_wind) > wind_threshold and max_wind_dir > dir_min and max_wind_dir < dir_max:
+        if need_update == True and args.trigger_tke is True:
+            azimuths = [0, 300.]
+            elevations = [60.]
+            deg_per_sec = 60.
+            for i in range(5):
+                azimuth = azimuths + azimuths
+                elevations = elevations + elevations
+            print("Sending VAD to update turbulence statistics.")
+            print("Not triggering PPI")
+            plugin.publish("lidar.strategy",
+                                0,
+                                timestamp=time.time_ns())
+        elif np.abs(max_wind) > wind_threshold and max_wind_dir > dir_min and max_wind_dir < dir_max:
             azimuths = [max_wind_dir-30, max_wind_dir+30]
             elevations = [2, 3, 4, 5, 7, 9, 11, 13, 15, 17]
             print("Triggering PPI")
@@ -213,8 +231,17 @@ if __name__ == "__main__":
                                     1,
                                     timestamp=time.time_ns())
         else:
-            azimuths = np.arange(0, 300, 60)
-            elevations = [60]
+            if args.trigger_tke is False:
+                azimuths = np.arange(0, 300, 60)
+                elevations = [30]
+                deg_per_sec = 60
+            else:
+                azimuths = [0., 60., 120., 180., 240., 300.]
+                elevations = [60.]
+                deg_per_sec = 30.
+                for i in range(4):
+                    azimuths = azimuths + azimuths
+
             print("Max wind = %f, %f" % (max_wind, max_wind_dir))
             print("Not triggering PPI")
             plugin.publish("lidar.strategy",
@@ -226,7 +253,7 @@ if __name__ == "__main__":
             plugin.publish("lidar.max_tke", float(max_wind.values), timestamp=time.time_ns())
         plugin.publish("lidar.max_wind_dir", max_wind_dir, timestamp=time.time_ns())
         make_scan_file(elevations, azimuths, out_file_name,
-                azi_speed=2, el_speed=1, repeat=repeat)
+                azi_speed=deg_per_sec, el_speed=1, repeat=repeat)
         send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd)    
 
         print("Uploading User1 files...")
