@@ -290,7 +290,7 @@ if __name__ == "__main__":
             print(filter_arg)
             file_list = a2e.search(filter_arg, table='inventory')
             a2e.download_files(file_list, path=os.getcwd())
-            nc_list = glob.glob('*.nc')
+            nc_list = sorted(glob.glob('*.nc'))
             sonic_data = xr.open_dataset(nc_list[-1])
             wind_speed = sonic_data['wind_speed'].values[0]
             wind_direction = sonic_data['wind_direction'].values[0]
