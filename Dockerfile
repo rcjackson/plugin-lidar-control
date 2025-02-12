@@ -11,6 +11,7 @@ RUN pip3 install --upgrade pandas
 RUN pip3 install paramiko
 RUN pip3 install --upgrade pywaggle
 RUN pip3 install sage_data_client
+RUN pip3 install git+https://github.com/DAP-platform/dap-py.git
 
 COPY . .
 ENTRYPOINT ["python3", "send_scan_to_lidar_csm.py"]

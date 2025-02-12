@@ -10,6 +10,7 @@ import os
 import xarray as xr
 import sage_data_client
 
+from doe_dap_dl import DAP
 from utils import read_as_netcdf
 from waggle.plugin import Plugin
 AZ_COUNTS_PER_ROT = 500000
@@ -157,6 +158,12 @@ if __name__ == "__main__":
             help='Lidar password')
     parser.add_argument('--dyn_csm', action="store_true",
             help="Set if lidar is running in Dynamic CSM mode.")
+    parser.add_argument('--trigger_sonic', default='',
+            help="Trigger from latest b1-level Sonic anemometer data at specified site (i.e. wfip3/caco.sonic.z02)")
+    parser.add_argument('--a2e_uname', default='',
+            help="Username for atmosphere 2 electrons.")
+    parser.add_argument('--a2e_passwd', default='',
+            help="Password for atmosphere 2 electrons.")
     rays_per_point = 1.
     args = parser.parse_args()
     wind_threshold = args.wmag
@@ -178,7 +185,7 @@ if __name__ == "__main__":
     ds_list = []
     file_list = sorted(file_list)[-1:0:-1]
     need_update = False
-    if args.trigger_node_hub_height == "" and args.trigger_node_llj == "":
+    if args.trigger_node_hub_height == "" and args.trigger_sonic == "" and args.trigger_node_llj == "":
         for f in file_list:
             if 'User2' in f:
                 dataset = read_as_netcdf(f, nant_lat_lon[0], nant_lat_lon[1], 0)
@@ -269,6 +276,65 @@ if __name__ == "__main__":
             else:
                 plugin.publish("lidar.max_tke", float(max_wind.values), timestamp=time.time_ns())
             plugin.publish("lidar.max_wind_dir", max_wind_dir, timestamp=time.time_ns())
+    elif args.trigger_sonic != "":
+        with Plugin() as plugin:
+            a2e = DAP('a2e.energy.gov', confirm_downloads=False)
+            a2e.setup_basic_auth(username=args.a2e_uname, password=args.a2e_passwd)
+            hour_ago = (datetime.datetime.now() - datetime.timedelta(minutes=180)).strftime("%Y%m%d%H%M%S")
+            now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            print(args.trigger_sonic)
+            filter_arg = {
+                "Dataset": f"{args.trigger_sonic}.b1",
+                "date_time": {"between": [hour_ago, now]},
+                }
+            print(filter_arg)
+            file_list = a2e.search(filter_arg, table='inventory')
+            a2e.download_files(file_list, path=os.getcwd())
+            nc_list = glob.glob('*.nc')
+            sonic_data = xr.open_dataset(nc_list[-1])
+            wind_speed = sonic_data['wind_speed'].values[0]
+            wind_direction = sonic_data['wind_direction'].values[0]
+            sonic_data.close()
+            print(f"30 min wind speed: {wind_speed} direction: {wind_direction}")
+            if wind_direction > dir_min and wind_direction < dir_max and wind_speed > wind_threshold:
+                elevations = [2, 3, 4, 5, 7, 9, 11, 13, 15, 17]
+                azimuths = [wind_direction-30, wind_direction+30]
+                deg_per_sec = 2
+                make_scan_file(elevations, azimuths, out_file_name,
+                    azi_speed=deg_per_sec, el_speed=1, repeat=repeat, dyn_csm=args.dyn_csm)
+                if args.dyn_csm:
+                    send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
+                        "scan.txt", dyn_csm=args.dyn_csm)
+                    send_scan('true.txt',  lidar_ip_addr, lidar_uname,
+                        lidar_pwd, out_file_name='change.txt', dyn_csm=args.dyn_csm)
+                else:
+                    send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
+                        out_file_name, dyn_csm=args.dyn_csm)
+
+                deg_per_sec = 2.
+                plugin.publish("lidar.strategy",
+                                1,
+                                timestamp=time.time_ns())
+                print("Triggering scan")
+            else:
+                elevations = [90.]
+                azimuths = [0]
+                deg_per_sec = 3.6
+                plugin.publish("lidar.strategy",
+                              0,
+                            timestamp=time.time_ns())
+                make_scan_file(elevations, azimuths, out_file_name, wait=0,
+                    azi_speed=deg_per_sec, el_speed=1, repeat=repeat, dyn_csm=args.dyn_csm)
+                print("Sending Stare...")
+                if args.dyn_csm:
+                    send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
+                        "scan.txt", dyn_csm=args.dyn_csm)
+                    send_scan('change_true.txt',  lidar_ip_addr, lidar_uname,
+                         lidar_pwd, out_file_name='change.txt', dyn_csm=args.dyn_csm)
+                else:
+                    send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
+                        out_file_name, dyn_csm=args.dyn_csm)
+
     else:
         with Plugin() as plugin:
             if args.trigger_node_llj_height == "" and not args.trigger_node_hub_height == "":
