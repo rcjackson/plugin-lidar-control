@@ -408,7 +408,7 @@ if __name__ == "__main__":
                 if args.dyn_csm:
                     send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
                         "scan.txt", dyn_csm=args.dyn_csm)
-                    send_scan('change_true.txt',  lidar_ip_addr, lidar_uname,
+                    send_scan('change_false.txt',  lidar_ip_addr, lidar_uname,
                            lidar_pwd, out_file_name='change.txt', dyn_csm=args.dyn_csm)
                 else:
                     send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
