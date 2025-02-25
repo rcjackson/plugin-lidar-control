@@ -95,7 +95,7 @@ def send_scan(file_name, lidar_ip_addr, lidar_uname, lidar_pwd, out_file_name='u
                 print(f"Writing {out_file_name} on lidar.")
                 sftp.put(file_name, "/C:/Lidar/System/Scan parameters/%s" % out_file_name)
             else:
-                sftp.put(file_name, f"/C:/Lidar/System/DynScan/{out_file_name}")
+                sftp.put(file_name, f"/C:/Users/End User/DynScan/{out_file_name}")
 
 
 def get_file(time, lidar_ip_addr, lidar_uname, lidar_pwd):
@@ -239,7 +239,7 @@ if __name__ == "__main__":
                 if args.dyn_csm:
                     send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
                         "scan.txt", dyn_csm=args.dyn_csm)
-                    send_scan('true.txt',  lidar_ip_addr, lidar_uname,
+                    send_scan('change_true.txt',  lidar_ip_addr, lidar_uname,
                            lidar_pwd, out_file_name='change.txt', dyn_csm=args.dyn_csm)
                 else:
                     send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
@@ -259,7 +259,7 @@ if __name__ == "__main__":
                 if args.dyn_csm:
                     send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
                         "scan.txt", dyn_csm=args.dyn_csm)
-                    send_scan('true.txt',  lidar_ip_addr, lidar_uname,
+                    send_scan('change_true.txt',  lidar_ip_addr, lidar_uname,
 
                            lidar_pwd, out_file_name='change.txt', dyn_csm=args.dyn_csm)
                 else:
@@ -297,7 +297,7 @@ if __name__ == "__main__":
             sonic_data.close()
             print(f"30 min wind speed: {wind_speed} direction: {wind_direction}")
             if wind_direction > dir_min and wind_direction < dir_max and wind_speed > wind_threshold:
-                elevations = [2, 3, 4, 5, 7, 9, 11, 13, 15, 17]
+                elevations = [2, 3, 4, 5, 7, 9, 11, 13, 15]
                 azimuths = [wind_direction-30, wind_direction+30]
                 deg_per_sec = 2
                 make_scan_file(elevations, azimuths, out_file_name,
@@ -305,7 +305,7 @@ if __name__ == "__main__":
                 if args.dyn_csm:
                     send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
                         "scan.txt", dyn_csm=args.dyn_csm)
-                    send_scan('true.txt',  lidar_ip_addr, lidar_uname,
+                    send_scan('change_true.txt',  lidar_ip_addr, lidar_uname,
                         lidar_pwd, out_file_name='change.txt', dyn_csm=args.dyn_csm)
                 else:
                     send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
@@ -329,7 +329,7 @@ if __name__ == "__main__":
                 if args.dyn_csm:
                     send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
                         "scan.txt", dyn_csm=args.dyn_csm)
-                    send_scan('change_true.txt',  lidar_ip_addr, lidar_uname,
+                    send_scan('change_false.txt',  lidar_ip_addr, lidar_uname,
                          lidar_pwd, out_file_name='change.txt', dyn_csm=args.dyn_csm)
                 else:
                     send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
@@ -408,7 +408,7 @@ if __name__ == "__main__":
                 if args.dyn_csm:
                     send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
                         "scan.txt", dyn_csm=args.dyn_csm)
-                    send_scan('change_false.txt',  lidar_ip_addr, lidar_uname,
+                    send_scan('change_true.txt',  lidar_ip_addr, lidar_uname,
                            lidar_pwd, out_file_name='change.txt', dyn_csm=args.dyn_csm)
                 else:
                     send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
