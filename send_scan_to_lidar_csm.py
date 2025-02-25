@@ -334,6 +334,8 @@ if __name__ == "__main__":
                 else:
                     send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
                         out_file_name, dyn_csm=args.dyn_csm)
+            plugin.publish("lidar.max_wind_speed", float(wind_speed), timestamp=time.time_ns())
+            plugin.publish("lidar.max_wind_direction", float(wind_direction), timestamp=time.time_ns())
 
     else:
         with Plugin() as plugin:
@@ -371,7 +373,9 @@ if __name__ == "__main__":
             df_dir = df.where(df["name"] == dir_key)
             df_spd = df.where(df["name"] == spd_key)
             print(df_dir["value"].mean(), df_spd["value"].mean())
-            if df_dir["value"].mean() > dir_min and df_dir["value"].mean() < dir_max and df_spd["value"].mean() > wind_threshold:
+            wind_speed = df_spd["value"].mean()
+            wind_direction = df_dir["value"].mean()
+            if wind_direction > dir_min and wind_direction < dir_max and wind_speed > wind_threshold:
                 elevations = [2, 3, 4, 5, 7, 9, 11, 13, 15, 17]
                 azimuths = [df_dir["value"].mean()-30, df_dir["value"].mean()+30]
                 deg_per_sec = 2
@@ -409,6 +413,9 @@ if __name__ == "__main__":
                 else:
                     send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
                         out_file_name, dyn_csm=args.dyn_csm)
+            plugin.publish("lidar.max_wind_speed", float(wind_speed), timestamp=time.time_ns())
+            plugin.publish("lidar.max_wind_direction", float(wind_direction), timestamp=time.time_ns())
+
         print("Uploading User files...")
         if cur_time.minute < 15:
             cur_time = cur_time - datetime.timedelta(hours=1)
