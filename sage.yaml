@@ -1,5 +1,5 @@
 name: "lidar-control"
-version: "2025.2.25.2"
+version: "2025.2.25.3"
 description: "Plugin for remote control of Halo Photonics XR Doppler lidars"
 keywords: ""
 authors: "Bobby Jackson, Bhupendra Raut, Seongha Park, Paytsar Muradyan, Rob Newsom, Raghavendra Krishnamurthy"

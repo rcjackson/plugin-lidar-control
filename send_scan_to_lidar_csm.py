@@ -343,7 +343,7 @@ if __name__ == "__main__":
                 df = sage_data_client.query(
                     start="-15m",
                     filter={
-                        "plugin": ".*windprofile:2024.12.5",
+                        "plugin": ".*windprofile:*",
                         "vsn": args.trigger_node_hub_height
                  })
                 dir_key = "lidar.hub_wind_dir"
@@ -353,7 +353,7 @@ if __name__ == "__main__":
                 df = sage_data_client.query(
                     start="-15m",
                     filter={
-                        "plugin": ".*windprofile:2024.12.5",
+                        "plugin": ".*windprofile:*",
                         "vsn": args.trigger_node_llj_height
                  })
                 dir_key = "lidar.llj_nose_dir"
