@@ -185,7 +185,7 @@ if __name__ == "__main__":
     ds_list = []
     file_list = sorted(file_list)[-1:0:-1]
     need_update = False
-    if args.trigger_node_hub_height == "" and args.trigger_sonic == "" and args.trigger_node_llj == "":
+    if args.trigger_node_hub_height == "" and args.trigger_sonic == "" and args.trigger_node_llj_height == "":
         for f in file_list:
             if 'User2' in f:
                 dataset = read_as_netcdf(f, nant_lat_lon[0], nant_lat_lon[1], 0)
@@ -231,8 +231,8 @@ if __name__ == "__main__":
                 print(max_wind)
             
             if np.abs(max_wind) > wind_threshold and max_wind_dir > dir_min and max_wind_dir < dir_max:
-                azimuths = [max_wind_dir-30, max_wind_dir+30]
-                elevations = [2, 3, 4, 5, 7, 9, 11, 13, 15, 17]
+                azimuths = [max_wind_dir]
+                elevations = np.arange(0, 180., 2.)
                 deg_per_sec = 2.
                 make_scan_file(elevations, azimuths, out_file_name,
                     azi_speed=deg_per_sec, el_speed=1, repeat=repeat, dyn_csm=args.dyn_csm)
@@ -245,16 +245,16 @@ if __name__ == "__main__":
                     send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
                         out_file_name, dyn_csm=args.dyn_csm)
 
-                print("Triggering PPI")
+                print("Triggering RHI")
                 print("Max wind = %f, %f" % (max_wind, max_wind_dir))
                 plugin.publish("lidar.strategy",
                                     1,
                                     timestamp=time.time_ns())
             else:
-                azimuths = [0, 360]
+                azimuths = [0, 60, 120, 180, 240, 300]
                 elevations = [60]
                 deg_per_sec = 60
-                make_scan_file(elevations, azimuths, out_file_name,
+                make_scan_file(elevations, azimuths, out_file_name, wait=1000,
                     azi_speed=deg_per_sec, el_speed=1, repeat=repeat, dyn_csm=args.dyn_csm)
                 if args.dyn_csm:
                     send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
@@ -317,9 +317,9 @@ if __name__ == "__main__":
                                 timestamp=time.time_ns())
                 print("Triggering scan")
             else:
-                elevations = [90.]
-                azimuths = [0]
-                deg_per_sec = 3.6
+                elevations = [60.]
+                azimuths = [0, 359.]
+                deg_per_sec = 60
                 plugin.publish("lidar.strategy",
                               0,
                             timestamp=time.time_ns())
@@ -343,17 +343,17 @@ if __name__ == "__main__":
                 df = sage_data_client.query(
                     start="-15m",
                     filter={
-                        "plugin": ".*windprofile:*",
+                        "plugin": ".*windprofile:2024.12.5",
                         "vsn": args.trigger_node_hub_height
                  })
                 dir_key = "lidar.hub_wind_dir"
                 spd_key = "lidar.hub_wind_spd"
-                
+                print(args.trigger_node_hub_height) 
             elif not args.trigger_node_llj_height == "" and args.trigger_node_hub_height == "":
                 df = sage_data_client.query(
                     start="-15m",
                     filter={
-                        "plugin": ".*windprofile:*",
+                        "plugin": ".*windprofile:2024.12.5",
                         "vsn": args.trigger_node_llj_height
                  })
                 dir_key = "lidar.llj_nose_dir"
@@ -376,11 +376,11 @@ if __name__ == "__main__":
             wind_speed = df_spd["value"].mean()
             wind_direction = df_dir["value"].mean()
             if wind_direction > dir_min and wind_direction < dir_max and wind_speed > wind_threshold:
-                elevations = [2, 3, 4, 5, 7, 9, 11, 13, 15, 17]
-                azimuths = [df_dir["value"].mean()-30, df_dir["value"].mean()+30]
-                deg_per_sec = 2
+                elevations = [0., 180.]
+                azimuths = [df_dir["value"].mean()]
+                deg_per_sec = 1
                 make_scan_file(elevations, azimuths, out_file_name,
-                    azi_speed=deg_per_sec, el_speed=1, repeat=repeat, dyn_csm=args.dyn_csm)
+                    azi_speed=deg_per_sec, el_speed=0.5, repeat=repeat, dyn_csm=args.dyn_csm)
                 if args.dyn_csm:
                     send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
                         "scan.txt", dyn_csm=args.dyn_csm)
@@ -396,9 +396,9 @@ if __name__ == "__main__":
                                 timestamp=time.time_ns())
                 print("Triggering scan")
             else:
-                elevations = [90.]
-                azimuths = [0]
-                deg_per_sec = 3.6
+                elevations = [60.]
+                azimuths = [0., 60., 120., 180., 270., 360.]
+                deg_per_sec = 60
                 plugin.publish("lidar.strategy",
                                 0,
                                 timestamp=time.time_ns())
