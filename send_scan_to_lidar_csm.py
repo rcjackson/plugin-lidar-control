@@ -158,6 +158,8 @@ if __name__ == "__main__":
             help='Lidar password')
     parser.add_argument('--dyn_csm', action="store_true",
             help="Set if lidar is running in Dynamic CSM mode.")
+    parser.add_argument('--default_stare', action="store_true",
+            help="Set if default strategy should be Stare and not VAD.")
     parser.add_argument('--trigger_sonic', default='',
             help="Trigger from latest b1-level Sonic anemometer data at specified site (i.e. wfip3/caco.sonic.z02)")
     parser.add_argument('--a2e_uname', default='',
@@ -396,15 +398,20 @@ if __name__ == "__main__":
                                 timestamp=time.time_ns())
                 print("Triggering scan")
             else:
-                elevations = [60.]
-                azimuths = [0., 60., 120., 180., 270., 360.]
+                if args.default_stare:
+                    elevations = [90.]
+                    azimuths = [0, 1.]
+                    print("Stare sent")
+                else:
+                    elevations = [60.]
+                    azimuths = [0., 60., 120., 180., 270., 360.]
+                    print("VAD sent")
                 deg_per_sec = 60
                 plugin.publish("lidar.strategy",
                                 0,
                                 timestamp=time.time_ns())
-                make_scan_file(elevations, azimuths, out_file_name, wait=0,
+                make_scan_file(elevations, azimuths, out_file_name, wait=1000,
                     azi_speed=deg_per_sec, el_speed=1, repeat=repeat, dyn_csm=args.dyn_csm)
-                print("Sending Stare...")
                 if args.dyn_csm:
                     send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
                         "scan.txt", dyn_csm=args.dyn_csm)
