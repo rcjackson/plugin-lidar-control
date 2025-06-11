@@ -129,8 +129,7 @@ def get_file(time, lidar_ip_addr, lidar_uname, lidar_pwd):
 
 
 if __name__ == "__main__":
-    out_file_name = 'user1.txt'
-
+    out_file_name = 'user.txt'
     parser = argparse.ArgumentParser()
     parser.add_argument('--wmag', type=float, default=2, 
             help='Max wind [TKE] threshold for triggering [m/s]')
@@ -166,8 +165,23 @@ if __name__ == "__main__":
             help="Username for atmosphere 2 electrons.")
     parser.add_argument('--a2e_passwd', default='',
             help="Password for atmosphere 2 electrons.")
-    rays_per_point = 1.
+    parser.add_argument('--cone_width', default=60.,
+            help="Cone width for stacked sector scans")
+    parser.add_argument('--trigger_hsrhi', action="store_true",
+            help="Trigger HSRHI in along wind direction")
+    parser.add_argument('--trigger_rhi', action="store_true",
+            help="Trigger RHI in along wind direction")
+    parser.add_argument('--trigger_ppis', action="store_true",
+            help="Trigger PPI in along wind direction")
+    parser.add_argument('--min_angle', default=5, type=float, help="Minimum elevation angle")
+    parser.add_argument('--step', default=5, type=float, help="Step between scans.")
+    parser.add_argument('--max_angle', default=5, type=float, help="Maximum elevation angle")
+    parser.add_argument('--width', default=60, type=float, help="Width of PPI cone.")
+    parser.add_argument('--speed', default=2, type=float, help="Rotation speed in degrees per second.")
     args = parser.parse_args()
+    if not args.trigger_rhi and not args.trigger_ppis and not args.trigger_hsrhi:
+        raise(ValueError, "User must specify scan to trigger in options (--trigger_(hsrhi/rhi/ppi).")
+    rays_per_point = 1.
     wind_threshold = args.wmag
     shear_top = args.shear_top
     shear_bottom = args.shear_bottom
@@ -378,11 +392,26 @@ if __name__ == "__main__":
             wind_speed = df_spd["value"].mean()
             wind_direction = df_dir["value"].mean()
             if wind_direction > dir_min and wind_direction < dir_max and wind_speed > wind_threshold:
-                elevations = [0., 180.]
-                azimuths = [df_dir["value"].mean()]
-                deg_per_sec = 1
+                if args.trigger_hsrhi:
+                    elevations = [0., 180.]
+                    azimuths = [df_dir["value"].mean()]
+                    el_speed = args.speed
+                    az_speed = 3
+                elif args.trigger_rhi:
+                    elevations = [args.min_angle, args.max_angle]
+                    azimuths = [df_dir["value"].mean()]
+                    el_speed = args.speed
+                    az_speed = 3
+                elif args.trigger_ppis:
+                    el_speed = 3
+                    az_speed = args.speed
+                    elevations = np.arange(args.min_angle, args.max_angle, args.step)
+                    azimuths = [df_dir["value"].mean() - args.cone_width/2,
+                            df_dir["value"].mean() + args.cone_width/2]
+                    
+                deg_per_sec = 2
                 make_scan_file(elevations, azimuths, out_file_name,
-                    azi_speed=deg_per_sec, el_speed=0.5, repeat=repeat, dyn_csm=args.dyn_csm)
+                    azi_speed=az_speed, el_speed=el_speed, repeat=repeat, dyn_csm=args.dyn_csm)
                 if args.dyn_csm:
                     send_scan(out_file_name, lidar_ip_addr, lidar_uname, lidar_pwd,
                         "scan.txt", dyn_csm=args.dyn_csm)
