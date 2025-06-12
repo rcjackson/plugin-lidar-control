@@ -1,5 +1,6 @@
 FROM waggle/plugin-base:1.1.1-base
 
+RUN echo 4
 RUN apt-get update -y
 RUN apt-get install -y libhdf5-serial-dev
 RUN apt-get install -y python3-h5py gcc python3-dev
