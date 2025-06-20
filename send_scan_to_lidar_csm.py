@@ -148,7 +148,11 @@ if __name__ == "__main__":
     parser.add_argument('--dir_max', type=float, default=270,
             help='Upper limit of wind direction [degrees]')
     parser.add_argument('--dir_min', type=float, default=90,
-            help='Lower limit of wind directionn [degrees]')
+            help='Lower limit of wind direction [degrees]')
+    parser.add_argument('--upwind_min', type=float, default=None,
+            help="Point upwind if in this interval [min].")
+    parser.add_argument('--upwind_max', type=float, default=None,
+            help="Point upwind if in this interval [max].")
     parser.add_argument('--lidar_ip_addr', type=str, default='10.31.81.87',
             help='Lidar IP address')
     parser.add_argument('--lidar_uname', type=str, default='end user',
@@ -238,6 +242,18 @@ if __name__ == "__main__":
             max_wind = dataset['wind_speed'].mean(dim='time').sel(height=slice(shear_bottom, shear_top)).max(dim='height')
             max_wind_dir = dataset['wind_speed'].mean(dim='time').sel(height=slice(shear_bottom, shear_top)).argmax(dim='height').values
             max_wind_dir = dataset['wind_direction'].mean(dim='time').sel(height=slice(shear_bottom, shear_top)).values[max_wind_dir]
+            if args.upwind_min is not None and args.upwind_max is not None:
+                if args.upwind_min > args.upwind_max:
+                    if max_wind_dir > args.upwind_min or max_wind_dir < args.upwind_max:
+                        max_wind_dir = max_wind_dir + 180
+                        if max_wind_dir >= 360.:
+                            max_wind_dir = max_wind_dir - 360.
+                else:
+                    if max_wind_dir > args.upwind_min and max_wind_dir < args.upwind_max:
+                        max_wind_dir = max_wind_dir + 180
+                        if max_wind_dir >= 360.:
+                            max_wind_dir = max_wind_dir - 360.
+
             if args.trigger_tke is True:    
                 ds["radial_velocity"] = ds["radial_velocity"].where(ds["intensity"] > 1.008)
                 tke = 0.5*(ds["radial_velocity"].std(dim='time')**2)
@@ -312,6 +328,18 @@ if __name__ == "__main__":
             wind_direction = sonic_data['wind_direction'].values[0]
             sonic_data.close()
             print(f"30 min wind speed: {wind_speed} direction: {wind_direction}")
+            if args.upwind_min is not None and args.upwind_max is not None:
+                if args.upwind_min > args.upwind_max:
+                    if wind_direction > args.upwind_min or wind_direction < args.upwind_max:
+                        wind_direction = wind_direction + 180
+                        if wind_direction >= 360.:
+                            wind_direction = wind_direction - 360.
+                else:
+                    if wind_direction > args.upwind_min and wind_direction < args.upwind_max:
+                        wind_direction = wind_direction + 180
+                        if wind_direction >= 360.:
+                            wind_direction = wind_direction - 360.
+
             if wind_direction > dir_min and wind_direction < dir_max and wind_speed > wind_threshold:
                 elevations = [2, 3, 4, 5, 7, 9, 11, 13, 15]
                 azimuths = [wind_direction-30, wind_direction+30]
@@ -391,23 +419,35 @@ if __name__ == "__main__":
             print(df_dir["value"].mean(), df_spd["value"].mean())
             wind_speed = df_spd["value"].mean()
             wind_direction = df_dir["value"].mean()
+            if args.upwind_min is not None and args.upwind_max is not None:
+                if args.upwind_min > args.upwind_max:
+                    if wind_direction > args.upwind_min or wind_direction < args.upwind_max:
+                        wind_direction = wind_direction + 180
+                        if wind_direction >= 360.:
+                            wind_direction = wind_direction - 360.
+                else:
+                    if wind_direction > args.upwind_min and wind_direction < args.upwind_max:
+                        wind_direction = wind_direction + 180
+                        if wind_direction >= 360.:
+                            wind_direction = wind_direction - 360.
+
             if wind_direction > dir_min and wind_direction < dir_max and wind_speed > wind_threshold:
                 if args.trigger_hsrhi:
                     elevations = [0., 180.]
-                    azimuths = [df_dir["value"].mean()]
+                    azimuths = [wind_direction]
                     el_speed = args.speed
                     az_speed = 3
                 elif args.trigger_rhi:
                     elevations = [args.min_angle, args.max_angle]
-                    azimuths = [df_dir["value"].mean()]
+                    azimuths = [wind_direction]
                     el_speed = args.speed
                     az_speed = 3
                 elif args.trigger_ppis:
                     el_speed = 3
                     az_speed = args.speed
                     elevations = np.arange(args.min_angle, args.max_angle, args.step)
-                    azimuths = [df_dir["value"].mean() - args.cone_width/2,
-                            df_dir["value"].mean() + args.cone_width/2]
+                    azimuths = [wind_direction - args.cone_width/2,
+                            wind_direction + args.cone_width/2]
                     
                 deg_per_sec = 2
                 make_scan_file(elevations, azimuths, out_file_name,
