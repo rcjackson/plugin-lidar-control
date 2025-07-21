@@ -182,6 +182,7 @@ if __name__ == "__main__":
     parser.add_argument('--max_angle', default=5, type=float, help="Maximum elevation angle")
     parser.add_argument('--width', default=60, type=float, help="Width of PPI cone.")
     parser.add_argument('--speed', default=2, type=float, help="Rotation speed in degrees per second.")
+    parser.add_argument('--az_offset', default=0., type=float, help="Azimuthal offset for lidar.")
     args = parser.parse_args()
     if not args.trigger_rhi and not args.trigger_ppis and not args.trigger_hsrhi:
         raise(ValueError, "User must specify scan to trigger in options (--trigger_(hsrhi/rhi/ppi).")
@@ -263,7 +264,8 @@ if __name__ == "__main__":
                 print(max_wind)
             
             if np.abs(max_wind) > wind_threshold and max_wind_dir > dir_min and max_wind_dir < dir_max:
-                azimuths = [max_wind_dir]
+                azimuths = np.array([max_wind_dir]) + args.az_offset
+                azimuths[azimuths >= 360] -= 360
                 elevations = np.arange(0, 180., 2.)
                 deg_per_sec = 2.
                 make_scan_file(elevations, azimuths, out_file_name,
@@ -283,7 +285,8 @@ if __name__ == "__main__":
                                     1,
                                     timestamp=time.time_ns())
             else:
-                azimuths = [0, 60, 120, 180, 240, 300]
+                azimuths = np.array([0, 60, 120, 180, 240, 300]) + args.az_offset
+                azimuths[azimuths >= 360] -= 360.
                 elevations = [60]
                 deg_per_sec = 60
                 make_scan_file(elevations, azimuths, out_file_name, wait=1000,
@@ -314,12 +317,10 @@ if __name__ == "__main__":
             a2e.setup_basic_auth(username=args.a2e_uname, password=args.a2e_passwd)
             hour_ago = (datetime.datetime.now() - datetime.timedelta(minutes=180)).strftime("%Y%m%d%H%M%S")
             now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-            print(args.trigger_sonic)
             filter_arg = {
                 "Dataset": f"{args.trigger_sonic}.b1",
                 "date_time": {"between": [hour_ago, now]},
                 }
-            print(filter_arg)
             file_list = a2e.search(filter_arg, table='inventory')
             a2e.download_files(file_list, path=os.getcwd())
             nc_list = sorted(glob.glob('*.nc'))
@@ -343,6 +344,8 @@ if __name__ == "__main__":
             if wind_direction > dir_min and wind_direction < dir_max and wind_speed > wind_threshold:
                 elevations = [2, 3, 4, 5, 7, 9, 11, 13, 15]
                 azimuths = [wind_direction-30, wind_direction+30]
+                azimuths = np.array(azimuths) + args.az_offset
+                azimuths[azimuths >= 360] -= 360
                 deg_per_sec = 2
                 make_scan_file(elevations, azimuths, out_file_name,
                     azi_speed=deg_per_sec, el_speed=1, repeat=repeat, dyn_csm=args.dyn_csm)
@@ -434,12 +437,16 @@ if __name__ == "__main__":
             if wind_direction > dir_min and wind_direction < dir_max and wind_speed > wind_threshold:
                 if args.trigger_hsrhi:
                     elevations = [0., 180.]
-                    azimuths = [wind_direction]
+                    azimuths = [wind_direction + args.az_offset]
+                    if azimuths[0] >= 360:
+                        azimuths[0] -= 360.
                     el_speed = args.speed
                     az_speed = 3
                 elif args.trigger_rhi:
                     elevations = [args.min_angle, args.max_angle]
-                    azimuths = [wind_direction]
+                    azimuths = [wind_direction + args.az_offset]
+                    if azimuths[0] >= 360:
+                        azimuths[0] -= 360.
                     el_speed = args.speed
                     az_speed = 3
                 elif args.trigger_ppis:
@@ -448,7 +455,9 @@ if __name__ == "__main__":
                     elevations = np.arange(args.min_angle, args.max_angle, args.step)
                     azimuths = [wind_direction - args.cone_width/2,
                             wind_direction + args.cone_width/2]
-                    
+                    azimuths = np.array(azimuths)
+                    azimuths[azimuths >= 360] -= 360
+
                 deg_per_sec = 2
                 make_scan_file(elevations, azimuths, out_file_name,
                     azi_speed=az_speed, el_speed=el_speed, repeat=repeat, dyn_csm=args.dyn_csm)
@@ -474,6 +483,8 @@ if __name__ == "__main__":
                 else:
                     elevations = [60.]
                     azimuths = [0., 60., 120., 180., 270., 360.]
+                    azimuths = np.array(azimuths) + args.az_offset
+                    azimuths[azimuths >= 360.] -= 360
                     print("VAD sent")
                 deg_per_sec = 60
                 plugin.publish("lidar.strategy",
