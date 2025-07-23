@@ -285,9 +285,17 @@ if __name__ == "__main__":
                                     1,
                                     timestamp=time.time_ns())
             else:
-                azimuths = np.array([0, 60, 120, 180, 240, 300]) + args.az_offset
-                azimuths[azimuths >= 360] -= 360.
-                elevations = [60]
+                if args.default_stare:
+                    elevations = [90.]
+                    azimuths = [0, 1.]
+                    print("Stare sent")
+                else:
+                    elevations = [60.]
+                    azimuths = [0., 60., 120., 180., 270., 360.]
+                    azimuths = np.array(azimuths) + args.az_offset
+                    azimuths[azimuths >= 360.] -= 360
+                    print("VAD sent")
+
                 deg_per_sec = 60
                 make_scan_file(elevations, azimuths, out_file_name, wait=1000,
                     azi_speed=deg_per_sec, el_speed=1, repeat=repeat, dyn_csm=args.dyn_csm)
@@ -342,10 +350,29 @@ if __name__ == "__main__":
                             wind_direction = wind_direction - 360.
 
             if wind_direction > dir_min and wind_direction < dir_max and wind_speed > wind_threshold:
-                elevations = [2, 3, 4, 5, 7, 9, 11, 13, 15]
-                azimuths = [wind_direction-30, wind_direction+30]
-                azimuths = np.array(azimuths) + args.az_offset
-                azimuths[azimuths >= 360] -= 360
+                if args.trigger_hsrhi:
+                    elevations = [0., 180.]
+                    azimuths = [wind_direction + args.az_offset]
+                    if azimuths[0] >= 360:
+                        azimuths[0] -= 360.
+                    el_speed = args.speed
+                    az_speed = 3
+                elif args.trigger_rhi:
+                    elevations = [args.min_angle, args.max_angle]
+                    azimuths = [wind_direction + args.az_offset]
+                    if azimuths[0] >= 360:
+                        azimuths[0] -= 360.
+                    el_speed = args.speed
+                    az_speed = 3
+                elif args.trigger_ppis:
+                    el_speed = 3
+                    az_speed = args.speed
+                    elevations = np.arange(args.min_angle, args.max_angle, args.step)
+                    azimuths = [wind_direction - args.cone_width/2,
+                            wind_direction + args.cone_width/2]
+                    azimuths = np.array(azimuths)
+                    azimuths[azimuths >= 360] -= 360
+
                 deg_per_sec = 2
                 make_scan_file(elevations, azimuths, out_file_name,
                     azi_speed=deg_per_sec, el_speed=1, repeat=repeat, dyn_csm=args.dyn_csm)
